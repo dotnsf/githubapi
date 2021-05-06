@@ -29,6 +29,9 @@ html, body{
 #me_btn{
   display: none;
 }
+#repos_btn{
+  display: none;
+}
 <% } %>
 </style>
 <script>
@@ -63,7 +66,19 @@ function my_info(){
       $('#info').html( e0 + e1 + e2 );
     }
   });
+}
 
+function my_repos(){
+  $.ajax({
+    url: './api/repos',
+    type: 'GET',
+    success: function( result ){
+      $('#info').html( JSON.stringify( result, null, 2 ) );
+    },
+    error: function( e0, e1, e2 ){
+      $('#info').html( e0 + e1 + e2 );
+    }
+  });
 }
 </script>
 </head>
@@ -81,6 +96,7 @@ function my_info(){
 
 <div class="container">
   <button class="btn btn-success" id="me_btn" onClick="my_info();">me</button>
+  <button class="btn btn-success" id="repos_btn" onClick="my_repos();">repos</button>
 </div>
 
 <div class="container" id="info">
