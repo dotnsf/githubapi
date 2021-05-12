@@ -192,7 +192,14 @@ router.get( '/file', async function( req, res ){
   if( apiurl && filename && req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.sha ){
     res.contentType( 'application/octet-stream' );
     var r = await GetFileContent( req, apiurl );
-    res.setHeader( 'Content-Disposition', 'inline; filename="' + filename + '"' );
+
+    var enc_filename = encodeURI( filename );
+    if( enc_filename == filename ){
+      res.setHeader( 'Content-Disposition', 'inline; filename="' + filename + '"' );
+    }else{
+      res.setHeader( 'Content-Disposition', 'inline; filename*=utf-8\'\'' + enc_filename );
+    }
+
     res.end( r, 'binary' );
   }else{
     res.status( 400 );
