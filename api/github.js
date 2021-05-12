@@ -202,7 +202,6 @@ router.get( '/file', async function( req, res ){
 });
 
 router.post( '/file', async function( req, res ){
-  console.log( 'POST /api/file' );
   res.contentType( 'application/json; charset=utf-8' );
 
   if( req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.id ){
@@ -232,6 +231,26 @@ router.post( '/file', async function( req, res ){
   }
 });
 
+router.post( '/merge', async function( req, res ){
+  res.contentType( 'application/json; charset=utf-8' );
+
+  var from = req.body.from;
+  var to = req.body.to;
+  if( req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.id ){
+    if( !from ){ from = '' + req.session.oauth.id; }
+    if( !to ){ to = "main"; }
+    var r = await MergeBranches( req, from, to );
+    console.log( { r } );
+
+    res.write( JSON.stringify( { result: r }, null, 2 ) );
+    res.end();
+  }else{
+    res.status( 400 );
+    res.write( JSON.stringify( { error: 'no access_token' }, null, 2 ) );
+    res.end();
+  }
+});
+
 router.get( '/isLoggedIn', function( req, res ){
   res.contentType( 'application/json; charset=utf-8' );
   var status = false;
@@ -258,6 +277,7 @@ function generateId(){
 
   return id;
 }
+
 
 //. git branch & git checkout & git pull
 async function InitMyBranch( req ){
@@ -584,6 +604,38 @@ async function ListFilesOfMyBranch( req ){
               });
             }
           });
+        }
+      });
+    }else{
+      resolve( false );
+    }
+  });
+}
+
+//. git merge
+//. https://docs.github.com/en/rest/reference/repos#merging
+async function MergeBranches( req, from, to ){
+  return new Promise( async function( resolve, reject ){
+    if( req.session && req.session.oauth && req.session.oauth.token ){
+      var data0 = {
+        base: to,
+        head: from,
+        commit_message: 'merge from ' + from + ' to ' + to
+      };
+      var option0 = {
+        url: 'https://api.github.com/repos/' + settings.repo_name + '/merges',
+        headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+        json: data0,
+        method: 'POST'
+      };
+      request( option0, async function( err0, res0, body0 ){
+        if( err0 ){
+          console.log( { err0 } );
+          resolve( false );
+        }else{
+          //body0 = JSON.parse( body0 );
+          console.log( { body0 } );
+          resolve( true );
         }
       });
     }else{

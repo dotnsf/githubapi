@@ -28,6 +28,11 @@ Sample for GitHub OAuth API.
 https://docs.github.com/en/developers/apps/building-oauth-apps
 
 
+## GitHub REST API References
+
+https://docs.github.com/en/rest
+
+
 ## References
 
 https://qiita.com/ngs/items/34e51186a485c705ffdb
