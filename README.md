@@ -5,6 +5,13 @@
 Sample for GitHub OAuth API.
 
 
+## Pre-requisites
+
+- Create Github account
+
+- Install & Setup(config) git cli
+
+
 ## Setup
 
 - Sign-in to GitHub : https://github.com/
