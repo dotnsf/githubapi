@@ -363,12 +363,17 @@ async function InitMyBranch( req ){
                       resolve( false );
                     }else{
                       body3 = JSON.parse( body3 );
-                      console.log( { body3 } );
-                      var sha3 = body3.object.sha;
-                      req.session.oauth.sha = sha3;
+                      console.log( { body3 } );  //. 権限がないユーザーだと { message: 'Not Found', documentation_url: '' }
+                      if( body3.message ){
+                        resolve( false );
+                      }else{
+                        var sha3 = body3.object.sha;
+                        req.session.oauth.sha = sha3;
 
-                      //. ファイル一覧取得
-                      resolve( true );
+                        //. ファイル一覧取得？
+
+                        resolve( true );
+                      }
                     }
                   });
                 }

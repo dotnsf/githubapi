@@ -9,7 +9,13 @@ Sample for GitHub OAuth API.
 
 - Create Github account
 
-- Install & Setup(config) git cli
+- Create a repository which is supposed to be handled by this application.
+
+  - Create repository.
+
+  - Make main branch name as **"main"**.
+
+  - Add, commit, and push at least one file into this **main** branch.
 
 
 ## Setup
@@ -21,6 +27,35 @@ Sample for GitHub OAuth API.
 - Input App name, Homepage URL(`http://localhost:8080` for example), Callback URL(`http://localhost:8080/api/callback` for example), and click **Create GitHub App** button. 
 
 - Copy `client_id`, (generated)`client_secret`, and `callback_url`, then paste them into settings.js.
+
+- Edit `repo_name` in settings.js. This value is supposed to be a same name of repository which is created in above.
+
+  - If your Github username is `USER` and repository name is `REPO`, then this value should be set as **`USER/REPO`**.
+
+
+## How to run
+
+- Install Node.js
+
+  - https://nodejs.org/
+
+- Git clone or Download this code:
+
+  - `$ git clone https://github.com/dotnsf/githubapi`
+
+  - `$ cd githubapi`
+
+- Install dependant libraries:
+
+  - `$ npm install`
+
+- Run application:
+
+  - `$ node app`
+
+- Browse application with web browser:
+
+  - http://localhost:8080/
 
 
 ## GitHub OAuth API References
