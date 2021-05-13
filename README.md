@@ -17,6 +17,8 @@ Sample for GitHub OAuth API.
 
   - Add, commit, and push at least one file into this **main** branch.
 
+- If you want to make this repository to be used by another GitHub user, you need to add him/her as Collaborator in this repository.
+
 
 ## Setup
 
