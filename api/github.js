@@ -69,7 +69,7 @@ router.get( '/callback', function( req, res ){
 
           req.session.oauth = {};
           req.session.oauth.token = access_token;
-          loggedIns[access_token] = true;
+          loggedIns[access_token] = { status: true };
 
           var r = await InitMyBranch( req );
           console.log( { r } );
@@ -267,13 +267,15 @@ router.get( '/isLoggedIn', function( req, res ){
 
   if( !status ){
     res.status( 400 );
+    res.write( JSON.stringify( { status: false }, null, 2 ) );
+  }else{
+    res.write( JSON.stringify( { status: true, user: status.user }, null, 2 ) );
   }
-  res.write( JSON.stringify( { status: status }, null, 2 ) );
   res.end();
 });
 
 function isLoggedIn( token ){
-  return ( loggedIns[token] ? true : false );
+  return ( loggedIns[token] ? loggedIns[token] : false );
 }
 
 
@@ -308,6 +310,8 @@ async function InitMyBranch( req ){
           req.session.oauth.name = body.name;
           req.session.oauth.email = body.email;
           req.session.oauth.avatar_url = body.avatar_url;
+
+          loggedIns[req.session.oauth.token].user = body;
 
           //. https://qiita.com/nysalor/items/68d2463bcd0bb24cf69b
 

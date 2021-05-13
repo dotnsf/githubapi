@@ -8,8 +8,8 @@
 <meta name="apple-web-app-capable" content="yes"/>
 
 <script src="//code.jquery.com/jquery-2.0.3.min.js"></script>
-<link href="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet"/>
-<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+<link href="//maxcdn.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" rel="stylesheet"/>
+<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
 
 <style type="text/css">
 html, body{
@@ -25,7 +25,9 @@ $(function(){
     url: './api/isLoggedIn',
     type: 'GET',
     success: function( result ){
+      //console.log( result );
       $('#login_btn').css( 'display', 'none' );
+      $('#logout_btn').html( result.user.id );
     },
     error: function( e0, e1, e2 ){
       $('#logout_btn').css( 'display', 'none' );
@@ -127,7 +129,7 @@ function my_merge(){
   </ul>
   <ul class="navbar-nav" id="navbar">
     <button class="btn btn-primary" id="login_btn" onClick="my_login();">login</button>
-    <button class="btn btn-primary" id="logout_btn" onClick="my_logout();">logout</button>
+    <button class="btn btn-primary" id="logout_btn" onClick="my_logout();" title="logout">logout</button>
   </ul>
 </nav>
 
