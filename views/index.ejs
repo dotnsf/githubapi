@@ -27,7 +27,6 @@ $(function(){
     success: function( result ){
       console.log( result );
       $('#login_btn').css( 'display', 'none' );
-      //$('#logout_btn').html( result.user.id );
       $('#logout_btn').html( '<img src="' + result.user.avatar_url + '" height="36"/>' );
       $('#logout_btn').prop( "title", "" + result.user.id );
     },
@@ -47,16 +46,18 @@ function my_login(){
 }
 
 function my_logout(){
-  $.ajax({
-    url: './api/logout',
-    type: 'POST',
-    success: function( result ){
-      location.href = './';
-    },
-    error: function( e0, e1, e2 ){
-      $('#info').html( e0 + e1 + e2 );
-    }
-  });
+  if( confirm( 'ログアウトしますか？' ) ){
+    $.ajax({
+      url: './api/logout',
+      type: 'POST',
+      success: function( result ){
+        location.href = './';
+      },
+      error: function( e0, e1, e2 ){
+        $('#info').html( e0 + e1 + e2 );
+      }
+    });
+  }
 }
 
 function my_info(){
