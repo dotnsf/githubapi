@@ -25,9 +25,11 @@ $(function(){
     url: './api/isLoggedIn',
     type: 'GET',
     success: function( result ){
-      //console.log( result );
+      console.log( result );
       $('#login_btn').css( 'display', 'none' );
-      $('#logout_btn').html( result.user.id );
+      //$('#logout_btn').html( result.user.id );
+      $('#logout_btn').html( '<img src="' + result.user.avatar_url + '" height="36"/>' );
+      $('#logout_btn').prop( "title", "" + result.user.id );
     },
     error: function( e0, e1, e2 ){
       $('#logout_btn').css( 'display', 'none' );
@@ -142,8 +144,16 @@ function my_merge(){
   -->
   <div id="push_div">
     <form name="form0" id="form0" action="./api/file" method="post" enctype="multipart/form-data">
+    <table class="table">
+    <tr>
+      <td>
       <input type="file" id="push_file" name="file" class="form-control"/>
+      </td>
+      <td>
       <input type="submit" class="btn btn-success" value="push"/>
+      </td>
+    </tr>
+    </table>
     </form>
   </div>
 </div>
