@@ -238,6 +238,23 @@ router.post( '/file', async function( req, res ){
   }
 });
 
+router.delete( '/file', async function( req, res ){
+  res.contentType( 'application/json; charset=utf-8' );
+
+  var filename = req.query.filename;
+  if( filename && req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.id ){
+    var r = await DeleteMyFile( req, filename );
+    console.log( { r } );
+
+    res.write( JSON.stringify( r, null, 2 ) );
+    res.end();
+  }else{
+    res.status( 400 );
+    res.write( JSON.stringify( { error: 'no access_token' }, null, 2 ) );
+    res.end();
+  }
+});
+
 router.post( '/merge', async function( req, res ){
   res.contentType( 'application/json; charset=utf-8' );
 
@@ -544,6 +561,10 @@ async function PushToMyBranch( req, filepath, filetype, originalfilename ){
                                   //body7 = JSON.parse( body7 );
                                   console.log( { body7 } );
                                   fs.unlink( filepath, function( e ){} );
+
+                                  var sha7 = body7.object.sha;
+                                  req.session.oauth.sha = sha7;
+
                                   resolve( true );
                                 }
                               });
@@ -616,6 +637,155 @@ async function ListFilesOfMyBranch( req ){
                   console.log( { body3 } ); //. body3.tree = [ { path: "README.md", size: 130, url: "", .. }, .. ]
     
                   resolve( body3.tree );
+                }
+              });
+            }
+          });
+        }
+      });
+    }else{
+      resolve( false );
+    }
+  });
+}
+
+async function DeleteMyFile( req, filename ){
+  return new Promise( async function( resolve, reject ){
+    if( req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.id && req.session.oauth.sha ){
+      //. コミット一覧（不要？）
+      var option1 = {
+        url: 'https://api.github.com/repos/' + settings.repo_name + '/commits',
+        headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+        method: 'GET'
+      };
+      request( option1, async function( err1, res1, body1 ){
+        if( err1 ){
+          console.log( { err1 } );
+          resolve( false );
+        }else{
+          body1 = JSON.parse( body1 );
+          console.log( { body1 } );
+
+          //. インスペクト（これだけでも良さそう）
+          var option2 = {
+            url: 'https://api.github.com/repos/' + settings.repo_name + '/commits/' + req.session.oauth.sha,
+            headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+            method: 'GET'
+          };
+          request( option2, async function( err2, res2, body2 ){
+            if( err2 ){
+              console.log( { err2 } );
+              resolve( false );
+            }else{
+              body2 = JSON.parse( body2 );  //. body2 = { commit: {}, url: '', author: {}, files: [], .. }
+              console.log( { body2 } );
+
+              //. tree
+              var option3 = {
+                url: 'https://api.github.com/repos/' + settings.repo_name + '/git/trees/' + body2.sha,
+                headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                method: 'GET'
+              };
+              request( option3, async function( err3, res3, body3 ){
+                if( err3 ){
+                  console.log( { err3 } );
+                  resolve( false );
+                }else{
+                  body3 = JSON.parse( body3 );
+                  console.log( { body3 } ); //. body3.tree = [ { path: "README.md", size: 130, url: "", .. }, .. ]
+
+                  //. tree から同じ filename を持つものを探して削除
+                  for( var i = 0; i < body3.tree.length; i ++ ){
+                    if( body3.tree[i].path == filename ){
+                      body3.tree.splice( i, 1 );
+                      break;
+                    }
+                  }
+                  console.log( { "body3tree": body3.tree } ); //. body3.tree = [ { path: "README.md", size: 130, url: "", .. }, .. ]
+                  
+                  var option4 = {
+                    url: 'https://api.github.com/repos/' + settings.repo_name + '/git/trees',
+                    headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                    json: body3,
+                    method: 'POST'
+                  };
+                  request( option4, async function( err4, res4, body4 ){
+                    if( err4 ){
+                      console.log( { err4 } );
+                      resolve( false );
+                    }else{
+                      //body4 = JSON.parse( body4 );
+                      console.log( { body4 } );
+                      var sha4 = body4.sha;
+
+                      //. 現在の Commit の SHA を取得
+                      var option5 = {
+                        url: 'https://api.github.com/repos/' + settings.repo_name + '/branches/' + req.session.oauth.id,
+                        headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                        method: 'GET'
+                      };
+                      request( option5, async function( err5, res5, body5 ){
+                        if( err5 ){
+                          console.log( { err5 } );
+                          resolve( false );
+                        }else{
+                          body5 = JSON.parse( body5 );
+                          console.log( { body5 } );
+                          var sha5 = body5.commit.sha;
+
+                          //. Commit を作成
+                          var ts = ( new Date() ).getTime();
+                          var data6 = {
+                            message: '' + ts,
+                            tree: sha4,
+                            parents: [ sha5 ]
+                          };
+                          var option6 = {
+                            url: 'https://api.github.com/repos/' + settings.repo_name + '/git/commits',
+                            headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                            json: data6,
+                            method: 'POST'
+                          };
+                          request( option6, async function( err6, res6, body6 ){
+                            if( err6 ){
+                              console.log( { err6 } );
+                              resolve( false );
+                            }else{
+                              //body6 = JSON.parse( body6 );
+                              console.log( { body6 } );
+                              var sha6 = body6.sha;
+          
+                              //. リファレンスを更新
+                              var data7 = {
+                                force: false,
+                                sha: sha6
+                              };
+                              var option7 = {
+                                url: 'https://api.github.com/repos/' + settings.repo_name + '/git/refs/heads/' + req.session.oauth.id,
+                                headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                                json: data7,
+                                method: 'PATCH'
+                              };
+                              request( option7, async function( err7, res7, body7 ){
+                                if( err7 ){
+                                  console.log( { err7 } );
+                                  resolve( false );
+                                }else{
+                                  //body7 = JSON.parse( body7 );
+                                  console.log( { body7 } );
+
+                                  var sha7 = body7.object.sha;
+                                  req.session.oauth.sha = sha7;
+
+                                  resolve( true );
+                                }
+                              });
+                            }
+                          });
+                        }
+                      });
+                    }
+                  });
                 }
               });
             }

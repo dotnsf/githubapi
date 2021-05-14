@@ -92,6 +92,7 @@ function my_files(){
     type: 'GET',
     success: function( result ){
       //$('#info').html( JSON.stringify( result, null, 2 ) );
+      /*
       var ul = '<ul>';
       result.forEach( function( f ){
         var path = f.path;
@@ -101,11 +102,37 @@ function my_files(){
       });
       ul += '</ul>';
       $('#info').html( ul );
+      */
+      var tbl = '<table class="table table-bordered">'
+      result.forEach( function( f ){
+        var path = f.path;
+        var url = f.url;
+        var tr = '<tr><td><a target="_blank" href="./api/file?filename=' + path + '&apiurl=' + url + '">' + path + '</a></td>'
+          + '<td><button class="btn btn-danger" onClick="my_delete_file_path(\'' + path + '\');">DELETE</button></td></tr>';
+        tbl += tr;
+      });
+      tbl += '</table>';
+      $('#info').html( tbl );
     },
     error: function( e0, e1, e2 ){
       $('#info').html( e0 + e1 + e2 );
     }
   });
+}
+
+function my_delete_file_path( path ){
+  if( confirm( path + ' を削除しますか？' ) ){
+    $.ajax({
+      url: './api/file?filename=' + path,
+      type: 'DELETE',
+      success: function( result ){
+        $('#info').html( JSON.stringify( result, null, 2 ) );
+      },
+      error: function( e0, e1, e2 ){
+        $('#info').html( e0 + e1 + e2 );
+      }
+    });
+  }
 }
 
 function my_merge(){
