@@ -32,6 +32,7 @@ $(function(){
     },
     error: function( e0, e1, e2 ){
       $('#logout_btn').css( 'display', 'none' );
+      $('#init_btn').css( 'display', 'none' );
       $('#me_btn').css( 'display', 'none' );
       $('#repos_btn').css( 'display', 'none' );
       $('#files_btn').css( 'display', 'none' );
@@ -149,6 +150,19 @@ function my_merge(){
     });
   }
 }
+
+function init_target(){
+  $.ajax({
+    url: './api/init',
+    type: 'POST',
+    success: function( result ){
+      $('#info').html( JSON.stringify( result, null, 2 ) );
+    },
+    error: function( e0, e1, e2 ){
+      $('#info').html( e0 + e1 + e2 );
+    }
+  });
+}
 </script>
 </head>
 <body>
@@ -164,12 +178,12 @@ function my_merge(){
 </nav>
 
 <div class="container">
+  <button class="btn btn-warning" id="init_btn" onClick="init_target();">init</button>
   <button class="btn btn-success" id="me_btn" onClick="my_info();">me</button>
   <button class="btn btn-success" id="repos_btn" onClick="my_repos();">repos</button>
   <button class="btn btn-success" id="files_btn" onClick="my_files();">files</button>
-  <!-- #5
+  <!-- #5 -->
   <button class="btn btn-danger" id="merge_btn" onClick="my_merge();">merge</button>
-  -->
   <div id="push_div">
     <form name="form0" id="form0" action="./api/file" method="post" enctype="multipart/form-data">
     <table class="table">

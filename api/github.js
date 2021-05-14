@@ -82,6 +82,20 @@ router.get( '/callback', function( req, res ){
 });
 
 
+//. #10
+router.post( '/init', async function( req, res ){
+  res.contentType( 'application/json; charset=utf-8' );
+  if( req.session && req.session.oauth && req.session.oauth.token ){
+    var r = await InitTargetBranch( req );
+    console.log( { r } );
+    res.write( JSON.stringify( r, null, 2 ) );
+    res.end();
+  }else{
+    res.status( 400 );
+    res.write( JSON.stringify( { error: 'no access_token' }, null, 2 ) );
+    res.end();
+  }
+});
 
 router.get( '/me', function( req, res ){
   res.contentType( 'application/json; charset=utf-8' );
@@ -262,7 +276,7 @@ router.post( '/merge', async function( req, res ){
   var to = req.body.to;
   if( req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.id ){
     if( !from ){ from = '' + req.session.oauth.id; }
-    if( !to ){ to = "main"; }
+    if( !to ){ to = settings.target_branch_name; }
     var r = await MergeBranches( req, from, to );
     console.log( { r } );
 
@@ -304,6 +318,54 @@ function generateId(){
   return id;
 }
 
+
+//. #10
+async function InitTargetBranch( req ){
+  return new Promise( async function( resolve, reject ){
+    if( req.session && req.session.oauth && req.session.oauth.token ){
+      //. main ブランチの SHA 取得
+      var option1 = {
+        url: 'https://api.github.com/repos/' + settings.repo_name + '/git/refs/heads/main',
+        headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+        method: 'GET'
+      };
+      console.log( { option1 } );
+      request( option1, async function( err1, res1, body1 ){
+        if( err1 ){
+          console.log( { err1 } );
+          resolve( false );
+        }else{
+          body1 = JSON.parse( body1 );
+          console.log( { body1 } );  //. body1 = { message: 'Git Repository is empty.', documentation_url 'xxx' }  ->  あらかじめリポジトリの main ブランチに README.md などを登録しておくことで回避
+          var sha1 = body1.object.sha;
+ 
+          //. ブランチ作成
+          var data2 = {
+            ref: 'refs/heads/' + settings.target_branch_name,
+            sha: sha1
+          };
+          var option2 = {
+            url: 'https://api.github.com/repos/' + settings.repo_name + '/git/refs',
+            headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi', 'Accept': 'application/vnd.github.v3+json' },
+            json: data2,
+            method: 'POST'
+          };
+          request( option2, async function( err2, res2, body2 ){
+            if( err2 ){
+              console.log( { err2 } );
+              resolve( false );
+            }else{
+              console.log( { body2 } );  //. { message: 'Reference already exists', .. }
+              resolve( true );
+            }
+          });
+        }
+      });
+    }else{
+      resolve( false );
+    }
+  });
+}
 
 //. git branch & git checkout & git pull
 async function InitMyBranch( req ){
