@@ -34,6 +34,8 @@ Sample for GitHub OAuth API.
 
   - If your Github username is `USER` and repository name is `REPO`, then this value should be set as **`USER/REPO`**.
 
+- Edit `target_branch_name` in settings.js, if needed. This value is a branch name of repository which is supposed to be created in initial setup and to be merged into.
+
 
 ## How to run
 
@@ -58,6 +60,12 @@ Sample for GitHub OAuth API.
 - Browse application with web browser:
 
   - http://localhost:8080/
+
+
+
+## How to initalize
+
+- Log in to application, and click **init** button. This operation would create `target_branch_name` branch from `main` branch, and this new branch will be used as a target branch when merged.
 
 
 ## GitHub OAuth API References

@@ -71,8 +71,17 @@ router.get( '/callback', function( req, res ){
           req.session.oauth.token = access_token;
           loggedIns[access_token] = { status: true };
 
-          var r = await InitMyBranch( req );
+          var r = await InitMyBranch( access_token );
           console.log( { r } );
+
+          if( r ){
+            req.session.oauth.id = r.id;
+            req.session.oauth.login = r.login;
+            req.session.oauth.name = r.name;
+            req.session.oauth.email = r.email;
+            req.session.oauth.avatar_url = r.avatar_url;
+            req.session.oauth.sha = r.sha;
+          }
         }
       }
     }
@@ -86,7 +95,7 @@ router.get( '/callback', function( req, res ){
 router.post( '/init', async function( req, res ){
   res.contentType( 'application/json; charset=utf-8' );
   if( req.session && req.session.oauth && req.session.oauth.token ){
-    var r = await InitTargetBranch( req );
+    var r = await InitTargetBranch( req.session.oauth.token );
     console.log( { r } );
     res.write( JSON.stringify( r, null, 2 ) );
     res.end();
@@ -188,7 +197,7 @@ router.get( '/repos', function( req, res ){
 router.get( '/files', async function( req, res ){
   res.contentType( 'application/json; charset=utf-8' );
   if( req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.sha ){
-    var r = await ListFilesOfMyBranch( req );
+    var r = await ListFilesOfMyBranch( req.session.oauth.token, req.session.oauth.sha );
     console.log( { r } );
     res.write( JSON.stringify( r, null, 2 ) );
     res.end();
@@ -203,9 +212,9 @@ router.get( '/file', async function( req, res ){
   res.contentType( 'application/json; charset=utf-8' );
   var apiurl = req.query.apiurl;
   var filename = req.query.filename;
-  if( apiurl && filename && req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.sha ){
+  if( apiurl && filename && req.session && req.session.oauth && req.session.oauth.token ){
     res.contentType( 'application/octet-stream' );
-    var r = await GetFileContent( req, apiurl );
+    var r = await GetFileContent( req.session.oauth.token, apiurl );
 
     var enc_filename = encodeURI( filename );
     if( enc_filename == filename ){
@@ -225,7 +234,7 @@ router.get( '/file', async function( req, res ){
 router.post( '/file', async function( req, res ){
   res.contentType( 'application/json; charset=utf-8' );
 
-  if( req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.id ){
+  if( req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.id, req.session.oauth.sha ){
     //. https://qiita.com/ngs/items/34e51186a485c705ffdb
     var filepath = req.file.path;
     var filetype = req.file.mimetype;
@@ -234,11 +243,15 @@ router.post( '/file', async function( req, res ){
     var filename = req.file.filename;
     var originalfilename = req.file.originalname;
 
-    var r = await PushToMyBranch( req, filepath, filetype, originalfilename );
+    var r = await PushToMyBranch( req.session.oauth.token, req.session.oauth.id, req.session.oauth.sha, filepath, filetype, originalfilename );
     console.log( { r } );
     if( r ){
       //. 追加したブランチの最新 SHA を取得
-      await InitMyBranch( req );
+      r = await InitMyBranch( req.session.oauth.token );
+      console.log( { r } );
+      if( r ){
+        req.session.oauth.sha = r.sha;
+      }
     }
 
     //res.write( JSON.stringify( { result: r }, null, 2 ) );
@@ -256,9 +269,12 @@ router.delete( '/file', async function( req, res ){
   res.contentType( 'application/json; charset=utf-8' );
 
   var filename = req.query.filename;
-  if( filename && req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.id ){
-    var r = await DeleteMyFile( req, filename );
+  if( filename && req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.id, req.session.oauth.sha ){
+    var r = await DeleteMyFile( req.session.oauth.token, req.session.oauth.id, req.session.oauth.sha, filename );
     console.log( { r } );
+    if( r ){
+      req.session.oauth.sha = r.sha;
+    }
 
     res.write( JSON.stringify( r, null, 2 ) );
     res.end();
@@ -277,7 +293,7 @@ router.post( '/merge', async function( req, res ){
   if( req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.id ){
     if( !from ){ from = '' + req.session.oauth.id; }
     if( !to ){ to = settings.target_branch_name; }
-    var r = await MergeBranches( req, from, to );
+    var r = await MergeBranches( req.session.oauth.token, from, to );
     console.log( { r } );
 
     res.write( JSON.stringify( { result: r }, null, 2 ) );
@@ -320,13 +336,13 @@ function generateId(){
 
 
 //. #10
-async function InitTargetBranch( req ){
+async function InitTargetBranch( access_token ){
   return new Promise( async function( resolve, reject ){
-    if( req.session && req.session.oauth && req.session.oauth.token ){
+    if( access_token ){
       //. main ブランチの SHA 取得
       var option1 = {
         url: 'https://api.github.com/repos/' + settings.repo_name + '/git/refs/heads/main',
-        headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+        headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
         method: 'GET'
       };
       console.log( { option1 } );
@@ -346,7 +362,7 @@ async function InitTargetBranch( req ){
           };
           var option2 = {
             url: 'https://api.github.com/repos/' + settings.repo_name + '/git/refs',
-            headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi', 'Accept': 'application/vnd.github.v3+json' },
+            headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi', 'Accept': 'application/vnd.github.v3+json' },
             json: data2,
             method: 'POST'
           };
@@ -368,12 +384,12 @@ async function InitTargetBranch( req ){
 }
 
 //. git branch & git checkout & git pull
-async function InitMyBranch( req ){
+async function InitMyBranch( access_token ){
   return new Promise( async function( resolve, reject ){
-    if( req.session && req.session.oauth && req.session.oauth.token ){
+    if( access_token ){
       var option = {
         url: 'https://api.github.com/user',
-        headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+        headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
         method: 'GET'
       };
       request( option, async function( err, res0, body ){
@@ -384,20 +400,22 @@ async function InitMyBranch( req ){
           body = JSON.parse( body );
           //. body = { login: 'dotnsf', id: XXXXXX, avatar_url: 'xxx', name: 'きむらけい', email: 'xxx@xxx', created_at: 'XX', updated_at: 'XX', ... }
           //req.session.oauth = {};
+          /*
           req.session.oauth.id = body.id;
           req.session.oauth.login = body.login;
           req.session.oauth.name = body.name;
           req.session.oauth.email = body.email;
           req.session.oauth.avatar_url = body.avatar_url;
+          */
 
-          loggedIns[req.session.oauth.token].user = body;
+          loggedIns[access_token].user = body;
 
           //. https://qiita.com/nysalor/items/68d2463bcd0bb24cf69b
 
           //. main ブランチの SHA 取得
           var option1 = {
             url: 'https://api.github.com/repos/' + settings.repo_name + '/git/refs/heads/main',
-            headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+            headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
             method: 'GET'
           };
           console.log( { option1 } );
@@ -412,12 +430,12 @@ async function InitMyBranch( req ){
   
               //. ブランチ作成
               var data2 = {
-                ref: 'refs/heads/' + req.session.oauth.id,
+                ref: 'refs/heads/' + body.id,
                 sha: sha1
               };
               var option2 = {
                 url: 'https://api.github.com/repos/' + settings.repo_name + '/git/refs',
-                headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi', 'Accept': 'application/vnd.github.v3+json' },
+                headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi', 'Accept': 'application/vnd.github.v3+json' },
                 json: data2,
                 method: 'POST'
               };
@@ -435,8 +453,8 @@ async function InitMyBranch( req ){
 
                   //. 作成したブランチの SHA 取得（？）
                   var option3 = {
-                    url: 'https://api.github.com/repos/' + settings.repo_name + '/git/refs/heads/' + req.session.oauth.id,
-                    headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                    url: 'https://api.github.com/repos/' + settings.repo_name + '/git/refs/heads/' + body.id,
+                    headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
                     method: 'GET'
                   };
                   console.log( { option3 } );
@@ -451,11 +469,12 @@ async function InitMyBranch( req ){
                         resolve( false );
                       }else{
                         var sha3 = body3.object.sha;
-                        req.session.oauth.sha = sha3;
+                        //req.session.oauth.sha = sha3;
+                        body.sha = sha3;
 
                         //. ファイル一覧取得？
 
-                        resolve( true );
+                        resolve( body );
                       }
                     }
                   });
@@ -474,9 +493,9 @@ async function InitMyBranch( req ){
 //. git add & git commit & git push
 //. 現状だと git add にならず、ここで指定したファイルだけが存在するブランチになってしまう（既存ファイルが消える？？）
 //. 既存の tree に追加する形にしないといけない？？
-async function PushToMyBranch( req, filepath, filetype, originalfilename ){
+async function PushToMyBranch( access_token, id, sha, filepath, filetype, originalfilename ){
   return new Promise( async function( resolve, reject ){
-    if( req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.id && req.session.oauth.sha ){
+    if( access_token && id && sha ){
       var data1 = {};
       if( filetype.startsWith( 'text' ) ){
         //. text
@@ -498,7 +517,7 @@ async function PushToMyBranch( req, filepath, filetype, originalfilename ){
       //. BLOB 作成
       var option1 = {
         url: 'https://api.github.com/repos/' + settings.repo_name + '/git/blobs',
-        headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+        headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
         json: data1,
         method: 'POST'
       };
@@ -517,8 +536,8 @@ async function PushToMyBranch( req, filepath, filetype, originalfilename ){
           //. 最後に InitMyBranch() を実行するなりして、セッション内 sha の更新が必要？
           //. インスペクト
           var option2 = {
-            url: 'https://api.github.com/repos/' + settings.repo_name + '/commits/' + req.session.oauth.sha,
-            headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+            url: 'https://api.github.com/repos/' + settings.repo_name + '/commits/' + sha,
+            headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
             method: 'GET'
           };
           request( option2, async function( err2, res2, body2 ){
@@ -532,7 +551,7 @@ async function PushToMyBranch( req, filepath, filetype, originalfilename ){
               //. tree
               var option3 = {
                 url: 'https://api.github.com/repos/' + settings.repo_name + '/git/trees/' + body2.sha,
-                headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
                 method: 'GET'
               };
               request( option3, async function( err3, res3, body3 ){
@@ -550,7 +569,7 @@ async function PushToMyBranch( req, filepath, filetype, originalfilename ){
 
                   var option4 = {
                     url: 'https://api.github.com/repos/' + settings.repo_name + '/git/trees',
-                    headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                    headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
                     json: data4,
                     method: 'POST'
                   };
@@ -566,8 +585,8 @@ async function PushToMyBranch( req, filepath, filetype, originalfilename ){
 
                       //. 現在の Commit の SHA を取得
                       var option5 = {
-                        url: 'https://api.github.com/repos/' + settings.repo_name + '/branches/' + req.session.oauth.id,
-                        headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                        url: 'https://api.github.com/repos/' + settings.repo_name + '/branches/' + id,
+                        headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
                         method: 'GET'
                       };
                       request( option5, async function( err5, res5, body5 ){
@@ -589,7 +608,7 @@ async function PushToMyBranch( req, filepath, filetype, originalfilename ){
                           };
                           var option6 = {
                             url: 'https://api.github.com/repos/' + settings.repo_name + '/git/commits',
-                            headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                            headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
                             json: data6,
                             method: 'POST'
                           };
@@ -609,8 +628,8 @@ async function PushToMyBranch( req, filepath, filetype, originalfilename ){
                                 sha: sha6
                               };
                               var option7 = {
-                                url: 'https://api.github.com/repos/' + settings.repo_name + '/git/refs/heads/' + req.session.oauth.id,
-                                headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                                url: 'https://api.github.com/repos/' + settings.repo_name + '/git/refs/heads/' + id,
+                                headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
                                 json: data7,
                                 method: 'PATCH'
                               };
@@ -625,9 +644,8 @@ async function PushToMyBranch( req, filepath, filetype, originalfilename ){
                                   fs.unlink( filepath, function( e ){} );
 
                                   var sha7 = body7.object.sha;
-                                  req.session.oauth.sha = sha7;
 
-                                  resolve( true );
+                                  resolve( { sha: sha7 } );
                                 }
                               });
                             }
@@ -653,13 +671,13 @@ async function PushToMyBranch( req, filepath, filetype, originalfilename ){
 
 //. 現在のファイル一覧
 //. https://stackoverflow.com/questions/25022016/get-all-file-names-from-a-github-repo-through-the-github-api
-async function ListFilesOfMyBranch( req ){
+async function ListFilesOfMyBranch( access_token, sha ){
   return new Promise( async function( resolve, reject ){
-    if( req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.id && req.session.oauth.sha ){
+    if( access_token && sha ){
       //. コミット一覧（不要？）
       var option1 = {
         url: 'https://api.github.com/repos/' + settings.repo_name + '/commits',
-        headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+        headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
         method: 'GET'
       };
       request( option1, async function( err1, res1, body1 ){
@@ -672,8 +690,8 @@ async function ListFilesOfMyBranch( req ){
 
           //. インスペクト（これだけでも良さそう）
           var option2 = {
-            url: 'https://api.github.com/repos/' + settings.repo_name + '/commits/' + req.session.oauth.sha,
-            headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+            url: 'https://api.github.com/repos/' + settings.repo_name + '/commits/' + sha,
+            headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
             method: 'GET'
           };
           request( option2, async function( err2, res2, body2 ){
@@ -687,7 +705,7 @@ async function ListFilesOfMyBranch( req ){
               //. tree
               var option3 = {
                 url: 'https://api.github.com/repos/' + settings.repo_name + '/git/trees/' + body2.sha,
-                headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
                 method: 'GET'
               };
               request( option3, async function( err3, res3, body3 ){
@@ -711,13 +729,13 @@ async function ListFilesOfMyBranch( req ){
   });
 }
 
-async function DeleteMyFile( req, filename ){
+async function DeleteMyFile( access_token, id, sha, filename ){
   return new Promise( async function( resolve, reject ){
-    if( req.session && req.session.oauth && req.session.oauth.token && req.session.oauth.id && req.session.oauth.sha ){
+    if( access_token && id && sha ){
       //. コミット一覧（不要？）
       var option1 = {
         url: 'https://api.github.com/repos/' + settings.repo_name + '/commits',
-        headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+        headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
         method: 'GET'
       };
       request( option1, async function( err1, res1, body1 ){
@@ -730,8 +748,8 @@ async function DeleteMyFile( req, filename ){
 
           //. インスペクト（これだけでも良さそう）
           var option2 = {
-            url: 'https://api.github.com/repos/' + settings.repo_name + '/commits/' + req.session.oauth.sha,
-            headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+            url: 'https://api.github.com/repos/' + settings.repo_name + '/commits/' + sha,
+            headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
             method: 'GET'
           };
           request( option2, async function( err2, res2, body2 ){
@@ -745,7 +763,7 @@ async function DeleteMyFile( req, filename ){
               //. tree
               var option3 = {
                 url: 'https://api.github.com/repos/' + settings.repo_name + '/git/trees/' + body2.sha,
-                headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
                 method: 'GET'
               };
               request( option3, async function( err3, res3, body3 ){
@@ -767,7 +785,7 @@ async function DeleteMyFile( req, filename ){
                   
                   var option4 = {
                     url: 'https://api.github.com/repos/' + settings.repo_name + '/git/trees',
-                    headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                    headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
                     json: body3,
                     method: 'POST'
                   };
@@ -782,8 +800,8 @@ async function DeleteMyFile( req, filename ){
 
                       //. 現在の Commit の SHA を取得
                       var option5 = {
-                        url: 'https://api.github.com/repos/' + settings.repo_name + '/branches/' + req.session.oauth.id,
-                        headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                        url: 'https://api.github.com/repos/' + settings.repo_name + '/branches/' + id,
+                        headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
                         method: 'GET'
                       };
                       request( option5, async function( err5, res5, body5 ){
@@ -804,7 +822,7 @@ async function DeleteMyFile( req, filename ){
                           };
                           var option6 = {
                             url: 'https://api.github.com/repos/' + settings.repo_name + '/git/commits',
-                            headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                            headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
                             json: data6,
                             method: 'POST'
                           };
@@ -823,8 +841,8 @@ async function DeleteMyFile( req, filename ){
                                 sha: sha6
                               };
                               var option7 = {
-                                url: 'https://api.github.com/repos/' + settings.repo_name + '/git/refs/heads/' + req.session.oauth.id,
-                                headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+                                url: 'https://api.github.com/repos/' + settings.repo_name + '/git/refs/heads/' + id,
+                                headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
                                 json: data7,
                                 method: 'PATCH'
                               };
@@ -837,9 +855,9 @@ async function DeleteMyFile( req, filename ){
                                   console.log( { body7 } );
 
                                   var sha7 = body7.object.sha;
-                                  req.session.oauth.sha = sha7;
+                                  //req.session.oauth.sha = sha7;
 
-                                  resolve( true );
+                                  resolve( { sha: sha7 } );
                                 }
                               });
                             }
@@ -862,9 +880,9 @@ async function DeleteMyFile( req, filename ){
 
 //. git merge
 //. https://docs.github.com/en/rest/reference/repos#merging
-async function MergeBranches( req, from, to ){
+async function MergeBranches( access_token, from, to ){
   return new Promise( async function( resolve, reject ){
-    if( req.session && req.session.oauth && req.session.oauth.token ){
+    if( access_token && from && to ){
       var data0 = {
         base: to,
         head: from,
@@ -872,7 +890,7 @@ async function MergeBranches( req, from, to ){
       };
       var option0 = {
         url: 'https://api.github.com/repos/' + settings.repo_name + '/merges',
-        headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+        headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
         json: data0,
         method: 'POST'
       };
@@ -893,12 +911,12 @@ async function MergeBranches( req, from, to ){
 }
 
 //. API URL からファイル取り出し
-async function GetFileContent( req, apiurl ){
+async function GetFileContent( access_token, apiurl ){
   return new Promise( async function( resolve, reject ){
-    if( req.session && req.session.oauth && req.session.oauth.token ){
+    if( access_token ){
       var option1 = {
         url: apiurl,
-        headers: { 'Authorization': 'token ' + req.session.oauth.token, 'User-Agent': 'githubapi' },
+        headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi' },
         method: 'GET'
       };
       request( option1, async function( err1, res1, body1 ){
