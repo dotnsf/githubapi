@@ -79,7 +79,15 @@ function my_repos(){
     url: './api/repos',
     type: 'GET',
     success: function( result ){
-      $('#info').html( JSON.stringify( result, null, 2 ) );
+      var tbl = '<table class="table table-bordered">'
+      result.forEach( function( f ){
+        var full_name = f.full_name;
+        var name = f.name;
+        var tr = '<tr><td><a target="_blank" href="//github.com/' + full_name + '">' + name + '</a></td>'
+        tbl += tr;
+      });
+      tbl += '</table>';
+      $('#info').html( tbl );
     },
     error: function( e0, e1, e2 ){
       $('#info').html( e0 + e1 + e2 );
@@ -92,18 +100,6 @@ function my_files(){
     url: './api/files',
     type: 'GET',
     success: function( result ){
-      //$('#info').html( JSON.stringify( result, null, 2 ) );
-      /*
-      var ul = '<ul>';
-      result.forEach( function( f ){
-        var path = f.path;
-        var url = f.url;
-        var li = '<li><a target="_blank" href="./api/file?filename=' + path + '&apiurl=' + url + '">' + path + '</a></li>';
-        ul += li;
-      });
-      ul += '</ul>';
-      $('#info').html( ul );
-      */
       var tbl = '<table class="table table-bordered">'
       result.forEach( function( f ){
         var path = f.path;
@@ -179,8 +175,10 @@ function init_target(){
 
 <div class="container">
   <button class="btn btn-warning" id="init_btn" onClick="init_target();">init</button>
+  <!--
   <button class="btn btn-success" id="me_btn" onClick="my_info();">me</button>
   <button class="btn btn-success" id="repos_btn" onClick="my_repos();">repos</button>
+  -->
   <button class="btn btn-success" id="files_btn" onClick="my_files();">files</button>
   <!-- #5 -->
   <button class="btn btn-danger" id="merge_btn" onClick="my_merge();">merge</button>
