@@ -428,7 +428,7 @@ async function InitMyBranch( access_token ){
               console.log( { body1 } );  //. body1 = { message: 'Git Repository is empty.', documentation_url 'xxx' }  ->  あらかじめリポジトリの main ブランチに README.md などを登録しておくことで回避
               var sha1 = body1.object.sha;
   
-              //. ブランチ作成
+              //. 個人ブランチ作成
               var data2 = {
                 ref: 'refs/heads/' + body.id,
                 sha: sha1
@@ -459,24 +459,45 @@ async function InitMyBranch( access_token ){
                   };
                   console.log( { option3 } );
                   request( option3, async function( err3, res3, body3 ){
+                    var obj = false;
                     if( err3 ){
                       console.log( { err3 } );
-                      resolve( false );
+                      //resolve( false );
                     }else{
                       body3 = JSON.parse( body3 );
                       console.log( { body3 } );  //. 権限がないユーザーだと { message: 'Not Found', documentation_url: '' }
                       if( body3.message ){
-                        resolve( false );
+                        //resolve( false );
                       }else{
                         var sha3 = body3.object.sha;
                         //req.session.oauth.sha = sha3;
                         body.sha = sha3;
 
-                        //. ファイル一覧取得？
-
-                        resolve( body );
+                        //. ターゲットブランチの生成結果に関係なく、この値を返す
+                        obj = JSON.parse( JSON.stringify( body ) );
+                        //resolve( body );
                       }
                     }
+
+                    //. ターゲットブランチ作成
+                    var data4 = {
+                      ref: 'refs/heads/' + settings.target_branch_name,
+                      sha: sha1
+                    };
+                    var option4 = {
+                      url: 'https://api.github.com/repos/' + settings.repo_name + '/git/refs',
+                      headers: { 'Authorization': 'token ' + access_token, 'User-Agent': 'githubapi', 'Accept': 'application/vnd.github.v3+json' },
+                      json: data4,
+                      method: 'POST'
+                    };
+                    request( option4, async function( err4, res4, body4 ){
+                      if( err4 ){
+                        console.log( { err4 } );
+                      }else{
+                        console.log( { body4 } );  //. { message: 'Reference already exists', .. }
+                      }
+                      resolve( obj );
+                    });
                   });
                 }
               });

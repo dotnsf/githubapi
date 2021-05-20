@@ -133,7 +133,7 @@ function my_delete_file_path( path ){
 }
 
 function my_merge(){
-  if( confirm( 'main ブランチにマージしますか？' ) ){
+  if( confirm( '対象ブランチにマージしますか？' ) ){
     $.ajax({
       url: './api/merge',
       type: 'POST',
@@ -174,8 +174,8 @@ function init_target(){
 </nav>
 
 <div class="container">
-  <button class="btn btn-warning" id="init_btn" onClick="init_target();">init</button>
   <!--
+  <button class="btn btn-warning" id="init_btn" onClick="init_target();">init</button>
   <button class="btn btn-success" id="me_btn" onClick="my_info();">me</button>
   <button class="btn btn-success" id="repos_btn" onClick="my_repos();">repos</button>
   -->
