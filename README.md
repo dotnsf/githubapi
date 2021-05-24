@@ -62,12 +62,6 @@ Sample for GitHub OAuth API.
   - http://localhost:8080/
 
 
-
-## How to initalize
-
-- Log in to application, and click **init** button. This operation would create `target_branch_name` branch from `main` branch, and this new branch will be used as a target branch when merged.
-
-
 ## GitHub OAuth API References
 
 https://docs.github.com/en/developers/apps/building-oauth-apps
